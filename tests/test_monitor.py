@@ -26,14 +26,36 @@ def test_format_sequence_and_status() -> None:
     assert format_event({"event": "other"}).startswith("?  {")
 
 
-def test_gap_detection() -> None:
+def test_gap_detection_within_connection() -> None:
     """Test that missing seq numbers and restarts are reported."""
     gaps = GapDetector()
     assert gaps.check({"run_id": "a", "seq": 1}) is None
     assert gaps.check({"run_id": "a", "seq": 2}) is None
     assert gaps.check({"run_id": "a", "seq": 5}) == "missed 2 event(s)"
     assert gaps.check({"run_id": "b", "seq": 1}) == "decoder restarted (new run_id)"
-    assert gaps.check({"seq": "x"}) is None
+    assert gaps.check({"run_id": "b", "seq": "x"}) is None
+
+
+def test_snapshot_is_not_a_reference() -> None:
+    """Test that events before connecting are not reported as missed."""
+    gaps = GapDetector()
+    assert gaps.check({"run_id": "a", "seq": 2}, snapshot=True) is None
+    assert gaps.check({"run_id": "a", "seq": 43}) is None
+    assert gaps.check({"run_id": "a", "seq": 44}) is None
+
+
+def test_reconnect_reports_events_lost_meanwhile() -> None:
+    """Test that a reconnect compares live events across the disconnection."""
+    gaps = GapDetector()
+    gaps.check({"run_id": "a", "seq": 2}, snapshot=True)
+    gaps.check({"run_id": "a", "seq": 10})
+    assert gaps.check({"run_id": "a", "seq": 2}, snapshot=True) is None
+    assert gaps.check({"run_id": "a", "seq": 14}) == "missed 3 event(s)"
+    assert (
+        gaps.check({"run_id": "b", "seq": 1}, snapshot=True)
+        == "decoder restarted (new run_id)"
+    )
+    assert gaps.check({"run_id": "b", "seq": 7}) is None
 
 
 def test_monitor_prints_events() -> None:
@@ -53,7 +75,8 @@ def test_monitor_prints_events() -> None:
         publisher.publish(
             '{"event":"sequence_detected","protocol":"dtmf","sequence":"12"}'
         )
-        while len(lines) < 3:
+        publisher.publish("not json")
+        while len(lines) < 4:
             await asyncio.sleep(0.01)
         await publisher.stop()
         while not lines[-1].startswith("disconnected"):
@@ -65,4 +88,5 @@ def test_monitor_prints_events() -> None:
     assert lines[0].startswith("connected to ws://127.0.0.1:")
     assert lines[1] == "?  status  running"
     assert lines[2] == "?  dtmf  12"
+    assert lines[3] == "!! not an event: 'not json'"
     assert lines[-1].startswith("disconnected")

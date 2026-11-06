@@ -29,23 +29,34 @@ def format_event(event: dict[str, Any]) -> str:
 
 @dataclass
 class GapDetector:
-    """Reports missed events from gaps in ``seq`` within one ``run_id``."""
+    """Reports missed events from gaps in ``seq`` within one ``run_id``.
+
+    The status event sent right after connecting repeats an earlier event with
+    its original ``seq``; it only identifies the run and is not used as the
+    reference, so events published before the receiver connected are not
+    reported as missed. After a reconnect the first live event is compared
+    with the last one received before, which reveals events lost meanwhile.
+    """
 
     run_id: str | None = None
     seq: int | None = None
 
-    def check(self, event: dict[str, Any]) -> str | None:
-        """Return a warning when events between the previous and this one are missing."""
+    def check(self, event: dict[str, Any], snapshot: bool = False) -> str | None:
+        """Return a warning when events were missed before this one."""
         run_id, seq = event.get("run_id"), event.get("seq")
-        if not isinstance(seq, int):
+        if not isinstance(run_id, str) or not isinstance(seq, int):
+            return None
+        if run_id != self.run_id:
+            warning = None if self.run_id is None else "decoder restarted (new run_id)"
+            self.run_id, self.seq = run_id, None if snapshot else seq
+            return warning
+        if snapshot:
             return None
         warning = None
-        if run_id != self.run_id:
-            if self.run_id is not None:
-                warning = "decoder restarted (new run_id)"
-        elif self.seq is not None and seq > self.seq + 1:
+        if self.seq is not None and seq > self.seq + 1:
             warning = f"missed {seq - self.seq - 1} event(s)"
-        self.run_id, self.seq = run_id if isinstance(run_id, str) else None, seq
+        if self.seq is None or seq > self.seq:
+            self.seq = seq
         return warning
 
 
@@ -56,9 +67,17 @@ async def monitor(url: str, raw: bool, output: Callable[[str], None] = print) ->
         try:
             async with connect(url) as connection:
                 output(f"connected to {url}")
+                first = True
                 async for message in connection:
-                    event = json.loads(message)
-                    warning = gaps.check(event)
+                    try:
+                        event = json.loads(message)
+                    except ValueError:
+                        event = None
+                    if not isinstance(event, dict):
+                        output(f"!! not an event: {message!r}")
+                        continue
+                    warning = gaps.check(event, snapshot=first)
+                    first = False
                     if warning:
                         output(f"!! {warning}")
                     output(str(message) if raw else format_event(event))
