@@ -11,6 +11,7 @@ dependencies = ["websockets~=15.0"]
 
 [project.scripts]
 osp-decoder = "osp_decoder.__main__:main"
+osp-monitor = "osp_decoder.monitor:main"
 
 [dependency-groups]
 dev = [
