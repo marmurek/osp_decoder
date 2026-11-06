@@ -15,9 +15,37 @@ from websockets.exceptions import WebSocketException
 RECONNECT_DELAY = 2.0
 
 
+def _named(text: str, name: Any) -> str:
+    return f"{text} ({name})" if name else text
+
+
+def _format_interpretation(
+    interpretation: dict[str, Any], names: dict[str, Any]
+) -> str:
+    command = interpretation.get("command") or (
+        f"command {interpretation.get('command_code')}"
+    )
+    parts = [
+        _named(command, names.get("command"))
+        + " "
+        + _named(f"unit {interpretation.get('unit')}", names.get("unit"))
+    ]
+    area = interpretation.get("area")
+    if area is not None:
+        parts.append(_named(f"area {area}", names.get("area")))
+    return " | ".join(parts)
+
+
 def format_event(event: dict[str, Any]) -> str:
     """Render an event as one human-readable line."""
     stamp = event.get("timestamp", "?")
+    if event.get("event") == "call_detected":
+        address = (event.get("address") or {}).get("value")
+        command = (event.get("command") or {}).get("value")
+        text = _format_interpretation(
+            event.get("interpretation") or {}, event.get("names") or {}
+        )
+        return f"{stamp}  {event.get('protocol')} call  {address}/{command}  {text}"
     if event.get("event") == "sequence_detected":
         details = event.get("details") or {}
         extra = " ".join(f"{key}={value}" for key, value in details.items())

@@ -4,6 +4,7 @@ import asyncio
 
 from osp_decoder.monitor import GapDetector, format_event, monitor
 from osp_decoder.publisher import Publisher
+from osp_decoder.stqc import interpret
 
 SEQUENCE = {
     "event": "sequence_detected",
@@ -24,6 +25,27 @@ def test_format_sequence_and_status() -> None:
     status = {"event": "status", "timestamp": "t", "state": "running", "message": ""}
     assert format_event(status) == "t  status  running"
     assert format_event({"event": "other"}).startswith("?  {")
+
+
+def test_format_call() -> None:
+    """Test that a call shows the command, unit and address formats."""
+    call = {
+        "event": "call_detected",
+        "timestamp": "t",
+        "protocol": "stqc",
+        "address": {"sequence": "4204123", "value": 2075},
+        "command": {"sequence": "40324202", "value": 3746},
+        "interpretation": interpret(2075, 3746),
+    }
+    assert format_event(call) == ("t  stqc call  2075/3746  TEST unit 746 | area 3227")
+    call["names"] = {"area": "County", "unit": "OSP A", "command": "Siren test"}
+    assert format_event(call) == (
+        "t  stqc call  2075/3746  TEST (Siren test) unit 746 (OSP A)"
+        " | area 3227 (County)"
+    )
+    del call["names"]
+    call["interpretation"] = interpret(16383, 65535)
+    assert format_event(call) == ("t  stqc call  2075/3746  command 65 unit 535")
 
 
 def test_gap_detection_within_connection() -> None:
