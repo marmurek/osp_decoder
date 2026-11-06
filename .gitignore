@@ -19,6 +19,7 @@ samples/*.wav
 *.raw
 
 # Local configuration and runtime data
+names.json
 .env
 *.local.toml
 data/

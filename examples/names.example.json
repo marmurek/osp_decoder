@@ -1,0 +1,22 @@
+{
+  "commands": {
+    "0": "Reset",
+    "1": "Fire alarm",
+    "3": "Siren test"
+  },
+  "areas": {
+    "910": {
+      "name": "Example county",
+      "units": {
+        "60": "OSP Example North",
+        "61": "OSP Example South"
+      }
+    },
+    "902": {
+      "name": "Another example county",
+      "units": {
+        "225": "OSP Example West"
+      }
+    }
+  }
+}
