@@ -18,6 +18,8 @@ aplikacji odbiorczych przez WebSocket.
   w polskich systemach alarmowania OSP (Digitex DSP-50, DSP-52L).
 - Wejście audio: karta USB przez ALSA (identyfikowana po USB VID:PID, nie po
   numerze karty) albo pliki WAV podczas testów. Audio nie jest zapisywane na dysk.
+  Podłączenie odbiornika i ustawienia toru audio opisuje
+  [docs/audio-input.md](docs/audio-input.md).
 - Dekoder nie interpretuje kodów i nie przypisuje ich do jednostek. Zajmuje się
   tym osobna aplikacja odbiorcza, która nie jest częścią tego projektu.
 
