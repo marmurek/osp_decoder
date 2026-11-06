@@ -3,7 +3,8 @@
 Decodes selective calls (STQC, DTMF, ZVEI and other five-tone systems) from
 radio audio captured by a sound card and publishes every detected sequence as
 a JSON event to WebSocket receivers. Interpreting the sequences (which unit,
-which command) is left to the receivers.
+which command) is currently left to the receivers; built-in interpretation of
+STQC calls is planned, see [Roadmap](#roadmap).
 
 Decoding is done by [multimon-ng](https://github.com/marmurek/multimon-ng),
 built from a fork that adds the STQC demodulator used by Polish volunteer fire
@@ -167,6 +168,28 @@ noise, so only the protocols in use should be enabled.
 
 Connecting the radio and setting the input level are described in
 [docs/audio-input.md](docs/audio-input.md).
+
+## Roadmap
+
+Planned, not implemented yet:
+
+- **STQC call interpretation.** Interpret address/command pairs as area,
+  unit and command (KASUJ, ALARM, PAGER, TEST, MAKRO, OC.GR, AI.OC1-3,
+  FONIA). Example: address `4204123` (2075) and command `40324202` (3746)
+  are area 3227, unit 746, `TEST`. The numbering format is community
+  knowledge, not published by the manufacturer, and is documented in
+  [airkey037/stqc_docs](https://github.com/airkey037/stqc_docs). The raw
+  fields (`sequence`, `digits`, `value`) stay authoritative; the
+  interpretation goes into optional, clearly labelled extra fields.
+- **Call events.** A new event (e.g. `call_detected`) pairing a 7-tone STQC
+  address with the following 8-tone command, with address, command and an
+  optional `interpretation` block, published alongside the existing
+  per-sequence events. Adding it requires a schema version and compatibility
+  note for receivers.
+- **Event history.** InfluxDB next to the decoder, in a memory-limited
+  container, storing events with 14-30 days of retention. Current InfluxDB
+  releases need a 64-bit system or at least ARMv7, which is to be verified
+  for the chosen board; Raspberry Pi 1 is not supported.
 
 ## Development
 
