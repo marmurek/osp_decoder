@@ -56,7 +56,8 @@ reduce the margin against noise.
 Opening the receiver's squelch can cut the beginning of the first tone. The
 decoder needs about 30 ms of clean tone plus a 40 ms analysis window. The
 first tone is almost always tone 4 (2105 Hz); losing it shortens the sequence
-but does not change its value.
+but does not change its value, and the address still forms a call with the
+following command.
 
 Start with the squelch open or set low. Continuous noise does not produce
 false detections (tested with white and band-limited noise).
