@@ -10,6 +10,7 @@ from typing import Any
 
 from websockets.asyncio.server import Server, ServerConnection, broadcast, serve
 from websockets.datastructures import Headers
+from websockets.exceptions import ConnectionClosed
 from websockets.http11 import Request, Response
 
 LOG = logging.getLogger(__name__)
@@ -75,10 +76,16 @@ class Publisher:
 
     async def _handle(self, connection: ServerConnection) -> None:
         LOG.info("receiver connected: %s", connection.remote_address)
-        await connection.send(self._status_event())
-        # Incoming messages are not part of the protocol and are discarded.
-        async for _ in connection:
-            pass
+        try:
+            await connection.send(self._status_event())
+            # Incoming messages are not part of the protocol and are discarded.
+            async for _ in connection:
+                pass
+        except ConnectionClosed as closed:
+            # Receivers on unreliable networks often vanish without a close
+            # frame; that is expected and not a server error.
+            LOG.info("receiver lost: %s (%s)", connection.remote_address, closed)
+            return
         LOG.info("receiver disconnected: %s", connection.remote_address)
 
     def _process_request(

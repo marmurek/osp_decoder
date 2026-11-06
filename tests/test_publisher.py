@@ -2,9 +2,11 @@
 
 import asyncio
 import json
+import logging
 import urllib.request
 from typing import Any
 
+import pytest
 from websockets.asyncio.client import connect
 
 from osp_decoder.healthcheck import check
@@ -65,3 +67,22 @@ def test_publish_without_server_or_receivers() -> None:
 def test_healthcheck_without_server() -> None:
     """Test that the health check fails when nothing listens."""
     assert not check(1, timeout=0.5)
+
+
+def test_abrupt_disconnect_is_not_an_error(caplog: pytest.LogCaptureFixture) -> None:
+    """Test that a receiver vanishing without a close frame logs no error."""
+
+    async def scenario() -> None:
+        publisher = Publisher("127.0.0.1", 0, _status, lambda: "{}")
+        await publisher.start()
+        client = await connect(f"ws://127.0.0.1:{publisher.port}/")
+        await client.recv()
+        client.transport.abort()
+        while publisher.receivers:
+            await asyncio.sleep(0.01)
+        await publisher.stop()
+
+    with caplog.at_level(logging.INFO):
+        asyncio.run(asyncio.wait_for(scenario(), 10))
+    assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+    assert any("receiver lost" in r.getMessage() for r in caplog.records)
