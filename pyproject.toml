@@ -1,0 +1,33 @@
+[project]
+name = "osp-decoder"
+version = "0.1.0"
+description = "Selective call decoder for OSP radio traffic, publishing detected sequences over WebSocket."
+readme = "README.md"
+license = "GPL-3.0-or-later"
+authors = [{ name = "Wojciech Marmurowicz" }]
+requires-python = ">=3.10"
+# Matches python3-websockets in Debian trixie, used by the runtime image.
+dependencies = ["websockets~=15.0"]
+
+[dependency-groups]
+dev = [
+    "black~=25.1",
+    "mypy~=1.15",
+    "pylint~=3.3",
+    "pytest~=8.3",
+    "pytest-cov~=6.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.9,<0.10"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "osp_decoder"
+module-root = ""
+
+[tool.mypy]
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
