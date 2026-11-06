@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/marmurek/osp_decoder/schema/event-v2.schema.json",
+  "title": "OSP decoder event, schema version 2",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "event",
+    "event_id",
+    "run_id",
+    "seq",
+    "timestamp",
+    "source"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 2
+    },
+    "event": {
+      "enum": [
+        "sequence_detected",
+        "call_detected",
+        "status"
+      ]
+    },
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "run_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Changes on every start of the decoder; seq restarts at 1."
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Increases by one for every event of a run; a gap means missed events."
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "description": "UTC. For sequence_detected and call_detected: when the decoder finished detecting the (last) sequence."
+    },
+    "source": {
+      "type": "string"
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "event": {
+          "const": "sequence_detected"
+        },
+        "protocol": {
+          "type": "string",
+          "description": "Lowercase multimon-ng demodulator name, e.g. stqc, dtmf, zvei1."
+        },
+        "sequence": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Sequence as received, leading zeros and repeat symbols preserved."
+        },
+        "details": {
+          "type": "object",
+          "description": "Protocol-specific fields; for stqc: digits (string) and value (integer)."
+        }
+      },
+      "required": [
+        "protocol",
+        "sequence",
+        "details"
+      ]
+    },
+    {
+      "properties": {
+        "event": {
+          "const": "call_detected"
+        },
+        "protocol": {
+          "const": "stqc"
+        },
+        "address": {
+          "type": "object",
+          "required": [
+            "sequence",
+            "value"
+          ],
+          "properties": {
+            "sequence": {
+              "type": "string",
+              "minLength": 1
+            },
+            "value": {
+              "type": "integer"
+            }
+          },
+          "description": "The 7-tone address sequence."
+        },
+        "command": {
+          "type": "object",
+          "required": [
+            "sequence",
+            "value"
+          ],
+          "properties": {
+            "sequence": {
+              "type": "string",
+              "minLength": 1
+            },
+            "value": {
+              "type": "integer"
+            }
+          },
+          "description": "The 8-tone command sequence that followed the address."
+        },
+        "interpretation": {
+          "type": "object",
+          "description": "Interpretation of the call: area number, unit and command. The format is community knowledge, not published by the manufacturer.",
+          "required": [
+            "area",
+            "unit",
+            "command_code",
+            "command"
+          ],
+          "properties": {
+            "area": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "(address div 64) * 100 + address mod 64; null when address div 64 exceeds 63"
+            },
+            "unit": {
+              "type": "integer",
+              "description": "command value mod 1000"
+            },
+            "command_code": {
+              "type": "integer",
+              "description": "command value div 1000"
+            },
+            "command": {
+              "enum": [
+                "KASUJ",
+                "ALARM",
+                "PAGER",
+                "TEST",
+                "MAKRO",
+                "OC.GR",
+                "AI.OC1",
+                "AI.OC2",
+                "AI.OC3",
+                "FONIA",
+                null
+              ]
+            }
+          }
+        },
+        "names": {
+          "type": "object",
+          "description": "Present only when a names file is configured; null when the file has no entry.",
+          "required": [
+            "area",
+            "unit",
+            "command"
+          ],
+          "properties": {
+            "area": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "unit": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "command": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "required": [
+        "protocol",
+        "address",
+        "command",
+        "interpretation"
+      ]
+    },
+    {
+      "properties": {
+        "event": {
+          "const": "status"
+        },
+        "state": {
+          "enum": [
+            "starting",
+            "running",
+            "audio_unavailable",
+            "restarting",
+            "stopped"
+          ]
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "message"
+      ]
+    }
+  ]
+}

@@ -62,6 +62,19 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="WebSocket listen port (OSP_PORT)",
     )
     parser.add_argument(
+        "--call-window",
+        type=float,
+        default=float(_env("CALL_WINDOW", str(defaults.decoder.call_window))),
+        help="seconds within which an STQC command must follow its address "
+        "to form a call (OSP_CALL_WINDOW)",
+    )
+    parser.add_argument(
+        "--names-file",
+        default=_env("NAMES_FILE", ""),
+        help="JSON file with names of STQC areas, units and commands "
+        "(OSP_NAMES_FILE)",
+    )
+    parser.add_argument(
         "--wait-for-receiver",
         action="store_true",
         default=_env("WAIT_FOR_RECEIVER", "") == "1",
@@ -85,7 +98,11 @@ def build_config(args: argparse.Namespace) -> Config:
             usb_id=args.usb_id,
             alsa_device=args.alsa_device or None,
         ),
-        decoder=DecoderConfig(protocols=protocols),
+        decoder=DecoderConfig(
+            protocols=protocols,
+            call_window=args.call_window,
+            names_file=Path(args.names_file) if args.names_file else None,
+        ),
         server=ServerConfig(host=args.host, port=args.port),
         wait_for_receiver=args.wait_for_receiver,
     )

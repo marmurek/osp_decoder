@@ -7,6 +7,7 @@ import wave
 from pathlib import Path
 from typing import Any
 
+import pytest
 from websockets.asyncio.client import connect
 
 from osp_decoder.__main__ import build_config, parse_args
@@ -21,6 +22,7 @@ from osp_decoder.service import (
 FAKE_OUTPUT = [
     "multimon-ng banner",
     '{"demod_name":"STQC","tones":"4204123","digits":"0200123","value":2075}',
+    '{"demod_name":"STQC","tones":"40324202","digits":"00322202","value":3746}',
     '{"demod_name":"DTMF","digit":"1"}',
     '{"demod_name":"DTMF","digit":"2"}',
     "ZVEI1: 12E45",
@@ -73,9 +75,14 @@ async def _collect(service: DecoderService, stop: asyncio.Event) -> list[Any]:
 
 def test_file_replay_publishes_all_events(tmp_path: Path) -> None:
     """Test that a replayed file yields contiguous events for every protocol."""
+    names_file = tmp_path / "names.json"
+    names_file.write_text(
+        '{"areas": {"3227": {"name": "County", "units": {"746": "OSP A"}}}}',
+        encoding="utf-8",
+    )
     config = Config(
         audio=AudioConfig(input_file=_silence(tmp_path / "in.wav")),
-        decoder=DecoderConfig(multimon=_fake_multimon(tmp_path)),
+        decoder=DecoderConfig(multimon=_fake_multimon(tmp_path), names_file=names_file),
         server=ServerConfig(host="127.0.0.1", port=0),
         wait_for_receiver=True,
     )
@@ -90,8 +97,18 @@ def test_file_replay_publishes_all_events(tmp_path: Path) -> None:
         for e in events
         if e["event"] == "sequence_detected"
     ]
-    assert sequences == [("stqc", "4204123"), ("zvei1", "12E45"), ("dtmf", "12")]
-    assert service.status()["sequences"] == 3
+    assert sequences == [
+        ("stqc", "4204123"),
+        ("stqc", "40324202"),
+        ("zvei1", "12E45"),
+        ("dtmf", "12"),
+    ]
+    assert service.status()["sequences"] == 4
+    calls = [e for e in events if e["event"] == "call_detected"]
+    assert len(calls) == 1
+    assert calls[0]["interpretation"]["command"] == "TEST"
+    assert calls[0]["interpretation"]["area"] == 3227
+    assert calls[0]["names"] == {"area": "County", "unit": "OSP A", "command": None}
 
 
 def test_missing_card_is_reported_and_retried(tmp_path: Path) -> None:
@@ -141,6 +158,16 @@ def test_failed_pipeline_is_restarted(tmp_path: Path) -> None:
     assert asyncio.run(asyncio.wait_for(scenario(), 20)) >= 2
 
 
+def test_invalid_names_file_is_reported_at_startup(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Test that a broken names file is logged before any call arrives."""
+    names_file = tmp_path / "names.json"
+    names_file.write_text("{broken", encoding="utf-8")
+    DecoderService(Config(decoder=DecoderConfig(names_file=names_file)))
+    assert any("invalid names file" in r.getMessage() for r in caplog.records)
+
+
 def test_command_line_options() -> None:
     """Test that command line options map onto the configuration."""
     config = build_config(
@@ -153,10 +180,16 @@ def test_command_line_options() -> None:
                 "--port",
                 "9000",
                 "--wait-for-receiver",
+                "--call-window",
+                "3.5",
+                "--names-file",
+                "names.json",
             ]
         )
     )
     assert config.audio.input_file == Path("call.wav")
     assert config.decoder.protocols == ("STQC", "DTMF")
     assert config.server.port == 9000
+    assert config.decoder.call_window == 3.5
+    assert config.decoder.names_file == Path("names.json")
     assert config.wait_for_receiver

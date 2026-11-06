@@ -22,6 +22,8 @@ from .events import Detection, EventFactory, format_timestamp, to_json
 from .parser import DtmfAssembler, DtmfDigit, parse_line
 from .pipeline import run_pipeline
 from .publisher import Publisher
+from .names import NamesFile
+from .stqc import CallInterpreter, CallPairer
 
 LOG = logging.getLogger(__name__)
 
@@ -53,6 +55,10 @@ class DecoderConfig:
     multimon: str = "multimon-ng"
     dtmf_timeout: float = 1.5
     restart_delay: float = 5.0
+    # Maximum time between an STQC address and its command.
+    call_window: float = 2.0
+    # JSON file with local names of STQC areas, units and commands.
+    names_file: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -105,6 +111,14 @@ class DecoderService:
         self._clock = clock
         self._events = EventFactory(config.source_name)
         self._dtmf = DtmfAssembler(timedelta(seconds=config.decoder.dtmf_timeout))
+        decoder = config.decoder
+        names = None if decoder.names_file is None else NamesFile(decoder.names_file)
+        if names is not None:
+            # Report a missing or invalid file at startup, not at the first call.
+            names.get()
+        self._calls = CallInterpreter(
+            CallPairer(timedelta(seconds=decoder.call_window)), names
+        )
         self.publisher = Publisher(
             config.server.host,
             config.server.port,
@@ -151,6 +165,21 @@ class DecoderService:
         self.publisher.publish(
             to_json(self._events.sequence_detected(detection, moment))
         )
+        if detection.protocol != "stqc":
+            return
+        result = self._calls.add(detection, moment)
+        if result is None:
+            return
+        call, interpretation = result.call, result.interpretation
+        LOG.info(
+            "call %s/%s: %s unit %s %s",
+            call.address_value,
+            call.command_value,
+            interpretation["command"],
+            interpretation["unit"],
+            result.names or "",
+        )
+        self.publisher.publish(to_json(self._events.call_detected(result, moment)))
 
     def _on_line(self, line: str) -> None:
         parsed = parse_line(line)

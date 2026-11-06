@@ -10,11 +10,14 @@ services:
     environment:
       OSP_SOURCE_NAME: radio_1
       OSP_PROTOCOLS: STQC
+      # Local names of areas, units and commands (see examples/names.example.json).
+      # OSP_NAMES_FILE: /config/names.json
     # The whole /dev/snd is mounted instead of single devices, and access to
     # all ALSA character devices (major 116) is allowed, so that a re-plugged
     # USB card with new device nodes is usable without restarting the container.
     volumes:
       - /dev/snd:/dev/snd
+      # - ./names.json:/config/names.json:ro
     device_cgroup_rules:
       - "c 116:* rmw"
     mem_limit: 64m

@@ -35,7 +35,9 @@ def _generate(path: Path, *options: str) -> Path:
     return path
 
 
-async def _replay(audio: Path, protocols: tuple[str, ...]) -> list[Any]:
+async def _replay(
+    audio: Path, protocols: tuple[str, ...], kind: str = "sequence_detected"
+) -> list[Any]:
     service = DecoderService(
         Config(
             audio=AudioConfig(input_file=audio),
@@ -50,11 +52,26 @@ async def _replay(audio: Path, protocols: tuple[str, ...]) -> list[Any]:
     async with connect(f"ws://127.0.0.1:{service.publisher.port}/") as client:
         events = [json.loads(message) async for message in client]
     await runner
-    return [
-        (e["protocol"], e["sequence"], e["details"])
-        for e in events
-        if e["event"] == "sequence_detected"
-    ]
+    if kind == "sequence_detected":
+        return [
+            (e["protocol"], e["sequence"], e["details"])
+            for e in events
+            if e["event"] == kind
+        ]
+    return [e for e in events if e["event"] == kind]
+
+
+@pytest.mark.parametrize(
+    "tones", ["4012012 40104324 ", "012012 40104324 "], ids=["full", "first-tone-cut"]
+)
+def test_generated_call_is_interpreted(tmp_path: Path, tones: str) -> None:
+    """Test that an address followed by a command yields a call event."""
+    audio = _generate(tmp_path / "call.wav", "-Q", tones)
+    calls = asyncio.run(_replay(audio, ("STQC",), "call_detected"))
+    assert len(calls) == 1
+    interpretation = calls[0]["interpretation"]
+    assert (interpretation["command"], interpretation["unit"]) == ("ALARM", 82)
+    assert interpretation["area"] == 606
 
 
 @pytest.mark.parametrize(

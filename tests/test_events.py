@@ -10,6 +10,7 @@ from osp_decoder.events import (
     format_timestamp,
     to_json,
 )
+from osp_decoder.stqc import Call, InterpretedCall
 
 MOMENT = datetime(2026, 11, 5, 10, 31, 0, 120456, tzinfo=timezone.utc)
 
@@ -42,6 +43,25 @@ def test_seq_increases_across_event_types() -> None:
     second = factory.sequence_detected(Detection("dtmf", "12"), MOMENT)
     assert (first["seq"], second["seq"]) == (1, 2)
     assert first["event_id"] != second["event_id"]
+
+
+def test_call_event_fields() -> None:
+    """Test that a call event carries both sequences and the interpretation."""
+    factory = EventFactory("radio_1")
+    address = Detection("stqc", "4204123", {"digits": "0200123", "value": 2075})
+    command = Detection("stqc", "40324202", {"digits": "00322202", "value": 3746})
+    call = Call(address, command, 2075, 3746)
+    event = factory.call_detected(InterpretedCall(call, {"unit": 746}, None), MOMENT)
+    assert event["event"] == "call_detected"
+    assert event["protocol"] == "stqc"
+    assert event["address"] == {"sequence": "4204123", "value": 2075}
+    assert event["command"] == {"sequence": "40324202", "value": 3746}
+    assert event["interpretation"] == {"unit": 746}
+    assert event["seq"] == 1
+    assert "names" not in event
+    names = {"area": "Area", "unit": None, "command": None}
+    named = factory.call_detected(InterpretedCall(call, {}, names), MOMENT)
+    assert named["names"] == names
 
 
 def test_json_is_single_line_and_keeps_strings() -> None:
