@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+build/
+*.lock
+
+# Tooling caches and reports
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Audio recordings (third-party material, large files)
+samples/*.wav
+*.raw
+
+# Local configuration and runtime data
+.env
+*.local.toml
+data/
+
+# Editors and OS
+.idea/
+.vscode/
+.project
+.pydevproject
+.settings/
+*.swp
+.DS_Store
