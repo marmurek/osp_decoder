@@ -1,0 +1,25 @@
+services:
+  osp-decoder:
+    build:
+      context: .
+      target: runtime
+    image: osp-decoder:latest
+    restart: unless-stopped
+    ports:
+      - "8765:8765"
+    environment:
+      OSP_SOURCE_NAME: radio_1
+      OSP_PROTOCOLS: STQC
+    # The whole /dev/snd is mounted instead of single devices, and access to
+    # all ALSA character devices (major 116) is allowed, so that a re-plugged
+    # USB card with new device nodes is usable without restarting the container.
+    volumes:
+      - /dev/snd:/dev/snd
+    device_cgroup_rules:
+      - "c 116:* rmw"
+    mem_limit: 64m
+    logging:
+      driver: json-file
+      options:
+        max-size: 1m
+        max-file: "3"
