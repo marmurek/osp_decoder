@@ -1,96 +1,95 @@
-# Wejście audio
+# Audio input
 
-Opis podłączenia odbiornika radiowego do karty dźwiękowej oraz czynników, które
-wpływają na skuteczność dekodowania.
+How to connect the receiver to the sound card and which factors affect
+decoding.
 
-## Tor sygnału
+## Signal path
 
 ```
-odbiornik NFM ──► wyjście słuchawkowe ──► (tłumik) ──► wejście mikrofonowe karty USB ──► ALSA
+NFM receiver ──► headphone output ──► (attenuator) ──► USB sound card mic input ──► ALSA
 ```
 
-Docelowa karta: GeneralPlus USB Audio Device, USB `1b3f:2008`.
+Sound card: GeneralPlus USB Audio Device, USB `1b3f:2008`.
 
-| Parametr | Wartość |
+| Parameter | Value |
 |---|---|
-| Nagrywanie | mono, S16_LE |
-| Częstotliwości próbkowania | tylko 44100 i 48000 Hz |
-| Regulacja wzmocnienia | `Mic` (capture), zakres 0–30, 100% = +33 dB |
-| AGC | `Auto Gain Control`, domyślnie wyłączone |
+| Capture format | mono, S16_LE |
+| Sample rates | 44100 and 48000 Hz only |
+| Gain control | `Mic` (capture), range 0–30, 100% = +33 dB |
+| AGC | `Auto Gain Control`, off by default |
 
-multimon-ng wymaga 22050 Hz. Przy 44100 Hz konwersja polega na zmniejszeniu
-częstotliwości dokładnie o połowę, więc jest tania obliczeniowo.
+multimon-ng requires 22050 Hz; ALSA `plughw` converts the card's rate.
 
-Karta nie ma numeru seryjnego. Jest identyfikowana po VID:PID
-(`/proc/asound/card*/usbid`), a nie po numerze karty ALSA, który może się
-zmieniać po ponownym podłączeniu. Przy kilku identycznych kartach trzeba je
-rozróżniać po porcie USB.
+The card has no serial number. It is identified by VID:PID in
+`/sys/class/sound` (`/proc/asound` is not available inside containers), not by
+its ALSA card number, which can change after re-plugging. Several identical
+cards would have to be distinguished by USB port, which is not implemented.
 
 ## Echo
 
-Sterownik DSP-50 podaje tony elektrycznie na wejście nadajnika, a odbiornik
-oddaje je elektrycznie na wyjście słuchawkowe. W tym torze nie ma pogłosu
-pomieszczenia. Odbicia fal radiowych dają opóźnienia rzędu mikrosekund,
-a w FM silniejszy sygnał i tak przejmuje odbiornik.
+The DSP-50 controller feeds the tones electrically into the transmitter, and
+the receiver outputs them electrically on the headphone jack, so this path has
+no room reverberation. Radio multipath delays are in the microsecond range and
+FM captures the stronger signal.
 
-Ograniczenie opisane w
+The echo limitation described in
 [STQC.md](https://github.com/marmurek/multimon-ng/blob/feature/stqc/STQC.md)
-(ogon echa w przerwie między adresem a komendą) dotyczy nagrań z głośnika
-w pomieszczeniu, a nie bezpośredniego podłączenia odbiornika.
+applies to loudspeaker audio recorded in a room, not to a receiver connected
+by cable.
 
-## Poziom wejścia
+## Input level
 
-Wejście mikrofonowe jest bardzo czułe, a wyjście słuchawkowe radia daje
-sygnał o dużym poziomie. Przy domyślnym wzmocnieniu karty (+33 dB) sygnał
-będzie przesterowany.
+The microphone input is very sensitive and a headphone output delivers a high
+level. At the card's default gain (+33 dB) the signal will clip.
 
-- Szczyty tonów powinny wypadać około −6 dBFS.
-- AGC karty musi pozostać wyłączone, bo zmienia poziom w trakcie sekwencji.
-- Jeśli przesterowanie występuje nawet przy minimalnym wzmocnieniu `Mic`,
-  potrzebny jest tłumik (dzielnik napięcia) na kablu.
+- Tone peaks should be around −6 dBFS.
+- The card's AGC must stay off, because it changes the level within a
+  sequence.
+- If the signal clips even at the minimum `Mic` gain, an attenuator (voltage
+  divider) is needed in the cable.
 
-Dekoder toleruje przesterowanie (test +30 dB przechodzi), ale harmoniczne
-zmniejszają margines przy jednoczesnym szumie.
+The decoder tolerates clipping (+30 dB overdrive is tested), but harmonics
+reduce the margin against noise.
 
-## Blokada szumów (squelch)
+## Squelch
 
-Otwieranie blokady szumów może uciąć początek pierwszego tonu. Dekoder
-potrzebuje około 30 ms czystego tonu oraz 40 ms okna analizy. Pierwszym tonem
-jest prawie zawsze ton 4 (2105 Hz). Jego utrata zmienia długość sekwencji,
-ale nie wartość.
+Opening the receiver's squelch can cut the beginning of the first tone. The
+decoder needs about 30 ms of clean tone plus a 40 ms analysis window. The
+first tone is almost always tone 4 (2105 Hz); losing it shortens the sequence
+but does not change its value.
 
-Zalecana konfiguracja początkowa: blokada szumów wyłączona albo ustawiona
-nisko. Ciągły szum nie powoduje fałszywych wykryć (sprawdzone testami na
-szumie białym i paśmowym).
+Start with the squelch open or set low. Continuous noise does not produce
+false detections (tested with white and band-limited noise).
 
-## Słaby sygnał
+## Weak signal
 
-W FM słaby sygnał objawia się szumem, a nie spadkiem głośności. Dekoder
-działa przy SNR około +4 dB w paśmie 300–3000 Hz (test), a w pomiarach także
-przy około −2 dB.
+On FM a weak signal shows up as noise, not as a lower level. The decoder works
+at about +4 dB SNR in the 300–3000 Hz band (tested), and in measurements down
+to about −2 dB.
 
-## Charakterystyka odbiornika
+## Receiver characteristics
 
-Deemfaza i filtry wyjściowe odbiornika mogą powodować różnicę poziomów między
-tonami 980 Hz i 2105 Hz, szacunkowo do kilku dB. Mieści się to w progach
-dekodera (próg poziomu −12 dB), ale należy to zmierzyć na rzeczywistym torze.
+De-emphasis and output filters of the receiver can make the 980 Hz and
+2105 Hz tones differ in level, estimated at a few dB. This is within the
+decoder's thresholds (−12 dB level limit) but should be measured on the actual
+path.
 
-Odbiornik musi być analogowy (NFM). Radiotelefony cyfrowe (DMR) przepuszczają
-dźwięk przez kodek mowy, który zniekształca tony.
+The receiver must be analog (NFM). Digital radios (DMR) pass audio through a
+speech codec that distorts the tones.
 
-## Zakłócenia sieciowe
+## Mains interference
 
-Pętla masy między radiem, komputerem i zasilaczem może wprowadzić brum 50 Hz
-i jego harmoniczne. Brum leży daleko od tonów STQC, ale przy dużym poziomie
-zmniejsza udział tonu w całkowitej energii sygnału. Pomaga wspólne zasilanie
-albo transformator separujący audio.
+A ground loop between the radio, the computer and the power supply can add
+50 Hz hum and its harmonics. The hum is far from the STQC tones, but at a high
+level it reduces the tone's share of the total signal energy. A common power
+supply or an audio isolation transformer helps.
 
-## Weryfikacja toru
+## Verifying the path
 
-Pierwsze nagranie z rzeczywistego odbiornika należy sprawdzić tak samo jak
-dotychczasowe próbki:
+The first recording from the actual receiver should be checked like the
+existing samples:
 
-- odchyłka częstotliwości tonów od nominalnych (dotychczas do ±6 Hz),
-- poziom tonów i poziom tła między tonami,
-- długość tonów i przerwy między adresem a komendą,
-- zgodność wyniku dekodowania z resyntezą sekwencji przez `gen-ng`.
+- deviation of the tone frequencies from nominal (up to ±6 Hz so far),
+- level of the tones and of the background between them,
+- tone durations and the pause between address and command,
+- decoding result matching a `gen-ng` resynthesis of the sequences.

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/marmurek/osp_decoder/schema/event-v1.schema.json",
+  "title": "OSP decoder event, schema version 1",
+  "type": "object",
+  "required": ["schema_version", "event", "event_id", "run_id", "seq", "timestamp", "source"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "event": { "enum": ["sequence_detected", "status"] },
+    "event_id": { "type": "string", "format": "uuid" },
+    "run_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Changes on every start of the decoder; seq restarts at 1."
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Increases by one for every event of a run; a gap means missed events."
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "description": "UTC. For sequence_detected: when the decoder finished detecting the sequence."
+    },
+    "source": { "type": "string" }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "event": { "const": "sequence_detected" },
+        "protocol": {
+          "type": "string",
+          "description": "Lowercase multimon-ng demodulator name, e.g. stqc, dtmf, zvei1."
+        },
+        "sequence": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Sequence as received, leading zeros and repeat symbols preserved."
+        },
+        "details": {
+          "type": "object",
+          "description": "Protocol-specific fields; for stqc: digits (string) and value (integer)."
+        }
+      },
+      "required": ["protocol", "sequence", "details"]
+    },
+    {
+      "properties": {
+        "event": { "const": "status" },
+        "state": {
+          "enum": ["starting", "running", "audio_unavailable", "restarting", "stopped"]
+        },
+        "message": { "type": "string" }
+      },
+      "required": ["state", "message"]
+    }
+  ]
+}
