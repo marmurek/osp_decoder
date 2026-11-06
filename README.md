@@ -96,7 +96,9 @@ Each WebSocket message is one complete JSON event. The schema is
 Delivery:
 
 - Every connected receiver gets every event. A new receiver first gets the
-  last status event (with its original `seq`) and then only new events.
+  last status event (with its original `seq`) and then only new events. This
+  repeated event identifies the run but must not serve as the reference for
+  gap detection, or events published before connecting would count as missed.
 - Events are not stored or repeated; a receiver that is disconnected misses
   them and can detect this from `seq`.
 - Publishing never waits for receivers, so a missing or slow receiver does not
