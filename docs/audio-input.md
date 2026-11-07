@@ -70,10 +70,13 @@ to about −2 dB.
 
 ## Receiver characteristics
 
-De-emphasis and output filters of the receiver can make the 980 Hz and
-2105 Hz tones differ in level, estimated at a few dB. This is within the
-decoder's thresholds (−12 dB level limit) but should be measured on the actual
-path.
+De-emphasis and output filters of the receiver can make the tones differ in
+level; differences of up to 18 dB between the tones of one call were seen in
+recordings. The decoder compares each tone with the recent level of the same
+tone and ignores a tone more than 10 dB below it, so unequal but stable
+attenuation is tolerated. The reference decays by about 5 dB per 100 ms of
+silence, so a call is never measured against an earlier, louder call. The
+levels should still be measured on the actual path.
 
 The receiver must be analog (NFM). Digital radios (DMR) pass audio through a
 speech codec that distorts the tones.

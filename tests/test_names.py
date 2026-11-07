@@ -91,6 +91,7 @@ def test_out_of_range_area_has_no_names() -> None:
         {"areas": {"Lezajsk": {"name": "x"}}},
         {"areas": {"9:10": {"name": "x"}}},
         {"area": {"910": {"name": "x"}}},
+        {"areas": {"910": {"nmae": "x"}}},
     ],
 )
 def test_invalid_structure(data: Any) -> None:

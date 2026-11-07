@@ -1,7 +1,8 @@
 """Local names for STQC areas, units and commands, read from a JSON file.
 
-There is no public list of these names; each installation maintains its own
-file. Areas are keyed by the area number of the call interpretation. Example:
+Each installation maintains its own file; public lists are partial and
+unverified. Areas are keyed by the area number of the call interpretation.
+Example:
 
     {
       "commands": {"1": "Fire alarm"},
@@ -21,8 +22,10 @@ from typing import Any
 
 LOG = logging.getLogger(__name__)
 
-# Top-level keys of the file; others are reported as errors to catch typos.
+# Keys of the file and of an area object; others are reported as errors to
+# catch typos.
 FILE_KEYS = ("commands", "areas")
+AREA_KEYS = ("name", "units")
 
 
 class NamesError(ValueError):
@@ -74,12 +77,16 @@ def _object(value: Any, what: str) -> dict[str, Any]:
     return value
 
 
+def _check_keys(obj: dict[str, Any], allowed: tuple[str, ...], what: str) -> None:
+    unknown = sorted(set(obj) - set(allowed))
+    if unknown:
+        raise NamesError(f"unknown keys {', '.join(unknown)} in {what}")
+
+
 def parse_names(data: Any) -> Names:
     """Validate the decoded JSON content of a names file."""
     root = _object(data, "the file")
-    unknown = sorted(set(root) - set(FILE_KEYS))
-    if unknown:
-        raise NamesError(f"unknown keys {', '.join(unknown)}")
+    _check_keys(root, FILE_KEYS, "the file")
     commands = {
         _number(code, "command"): _text(name, f"command {code}")
         for code, name in _object(root.get("commands", {}), "commands").items()
@@ -90,6 +97,7 @@ def parse_names(data: Any) -> Names:
     for raw_key, area in _object(root.get("areas", {}), "areas").items():
         key = _number(raw_key, "area")
         area = _object(area, f"area {raw_key}")
+        _check_keys(area, AREA_KEYS, f"area {raw_key}")
         if "name" in area:
             areas[key] = _text(area["name"], f"name of area {key}")
         for unit, name in _object(

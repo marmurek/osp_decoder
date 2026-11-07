@@ -2,7 +2,7 @@
 
 # multimon-ng with the STQC demodulator, pinned to a commit of the fork.
 ARG MULTIMON_REPO=https://github.com/marmurek/multimon-ng.git
-ARG MULTIMON_REF=a3886aea0e1e591d45260590abc042693efbed19
+ARG MULTIMON_REF=7b435bd122377f65c639bee0d9f8643fd582f278
 
 FROM debian:trixie-slim AS multimon-build
 ARG MULTIMON_REPO

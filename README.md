@@ -142,9 +142,10 @@ Other numbering variants in use read the address as one number (the raw
 
 ### Names of areas, units and commands
 
-There is no public list of the names behind the numbers; each installation
-keeps its own JSON file and sets `OSP_NAMES_FILE` to it. Call events then get
-a `names` block, and the monitor shows the names next to the numbers:
+Each installation keeps its own JSON file with the names behind the numbers
+and sets `OSP_NAMES_FILE` to it. Partial community lists are available, but
+their entries need verification against local recordings. Call events then
+get a `names` block, and the monitor shows the names next to the numbers:
 
 ```json
 "names": {"area": "Example county", "unit": "OSP Example North", "command": "Fire alarm"}
@@ -170,6 +171,16 @@ are `null`. The file is checked at startup and read again whenever it changes;
 an invalid file is reported in the log and the previous names stay in use. Keep
 the file out of public repositories (`names.json` is ignored by git), since
 publishing unit numbers may be unwelcome.
+
+An area can be named without knowing its units: leave `units` empty or omit
+it. Calls then include the area name, while the unknown unit name remains
+`null`. Keep source URLs and verification notes separately from the names
+file, whose top-level keys are limited to `areas` and `commands`.
+
+When importing raw address/command pairs, convert them to the interpreted
+area and unit first. Keep real mappings and their sources in git-ignored
+local files, not in this README or other tracked documentation.
+Area numbers do not necessarily follow administrative boundaries or TERYT codes.
 
 Some State Fire Service commands publish "SWD" numbers of their OSP units as
 seven digits, e.g. `0910060`. These fit the area format as area `910` and
