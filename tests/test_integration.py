@@ -86,6 +86,8 @@ def test_generated_call_is_interpreted(tmp_path: Path, tones: str) -> None:
             ],
         ),
         (("-d", "0123#"), ("DTMF",), [("dtmf", "0123#", {})]),
+        (("-d", "*1122#"), ("DTMF",), [("dtmf", "*1122#", {})]),
+        (("-d", "456789ABCD"), ("DTMF",), [("dtmf", "456789ABCD", {})]),
         (("-z", "01234"), ("ZVEI1",), [("zvei1", "01234", {})]),
     ],
 )

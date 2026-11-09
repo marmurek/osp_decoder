@@ -31,9 +31,11 @@ def test_selcall_text(line: str, expected: Detection) -> None:
     assert parse_line(line) == expected
 
 
-def test_dtmf_digit() -> None:
-    """Test that a DTMF JSON line yields a single digit."""
-    assert parse_line('{"demod_name":"DTMF","digit":"#"}') == DtmfDigit("#")
+@pytest.mark.parametrize("digit", list("0123456789*#ABCD"))
+def test_dtmf_digit(digit: str) -> None:
+    """Test that a DTMF JSON line yields a single digit for all 16 symbols."""
+    line = f'{{"demod_name":"DTMF","digit":"{digit}"}}'
+    assert parse_line(line) == DtmfDigit(digit)
 
 
 @pytest.mark.parametrize(
@@ -63,6 +65,18 @@ def test_dtmf_sequence_ends_after_timeout() -> None:
     finished = assembler.poll(START + timedelta(seconds=1.5))
     assert finished == (Detection("dtmf", "12"), START + timedelta(seconds=0.5))
     assert assembler.poll(START + timedelta(seconds=5)) is None
+
+
+def test_dtmf_repeated_digits_are_kept() -> None:
+    """Test that repeated digits within the timeout stay in one sequence."""
+    assembler = DtmfAssembler(timedelta(seconds=1))
+    for index, digit in enumerate("*1122#"):
+        moment = START + timedelta(seconds=0.1 * index)
+        assert assembler.add(DtmfDigit(digit), moment) is None
+    assert assembler.flush() == (
+        Detection("dtmf", "*1122#"),
+        START + timedelta(seconds=0.5),
+    )
 
 
 def test_dtmf_late_digit_starts_new_sequence() -> None:
